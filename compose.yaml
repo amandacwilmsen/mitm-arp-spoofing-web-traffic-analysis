@@ -1,0 +1,39 @@
+
+# Rede de laboratório isolada, sem acesso às redes externas.
+services:
+  victim:
+    build: .
+    command: sleep infinity
+    volumes:
+      - ./src:/app
+    networks:
+      lab_network:
+        ipv4_address: 172.30.10.10
+
+  gateway:
+    build: .
+    command: sleep infinity
+    volumes:
+      - ./src:/app
+    networks:
+      lab_network:
+        ipv4_address: 172.30.10.2
+
+  interceptor:
+    build: .
+    command: sleep infinity
+    cap_add:
+      - NET_RAW
+    volumes:
+      - ./src:/app
+    networks:
+      lab_network:
+        ipv4_address: 172.30.10.20
+
+networks:
+  lab_network:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.10.0/24
