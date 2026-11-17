@@ -1,9 +1,15 @@
 
-# Rede de laboratório isolada, sem acesso às redes externas.
+# Laboratório Docker para estudo de redes.
+# Os testes devem utilizar somente os dispositivos do laboratório.
+
 services:
   victim:
     build: .
-    command: sleep infinity
+    command: >
+      sh -c "ip route replace default via 172.30.10.2 dev eth0
+      && exec sleep infinity"
+    cap_add:
+      - NET_ADMIN
     volumes:
       - ./src:/app
     networks:
@@ -12,28 +18,56 @@ services:
 
   gateway:
     build: .
-    command: sleep infinity
+    command: >
+      sh -c "ip route del default 2>/dev/null || true;
+      exec sleep infinity"
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      net.ipv4.ip_forward: "1"
     volumes:
       - ./src:/app
     networks:
       lab_network:
         ipv4_address: 172.30.10.2
+      web_network:
+        ipv4_address: 172.30.20.2
 
   interceptor:
     build: .
-    command: sleep infinity
+    command: >
+      sh -c "ip route del default 2>/dev/null || true;
+      exec sleep infinity"
     cap_add:
       - NET_RAW
+      - NET_ADMIN
     volumes:
       - ./src:/app
     networks:
       lab_network:
         ipv4_address: 172.30.10.20
 
+  web_server:
+    build: .
+    command: >
+      sh -c "ip route del default 2>/dev/null || true;
+      ip route replace 172.30.10.0/24 via 172.30.20.2 dev eth0
+      && exec python -m http.server 8000 --bind 0.0.0.0 --directory /tmp"
+    cap_add:
+      - NET_ADMIN
+    networks:
+      web_network:
+        ipv4_address: 172.30.20.10
+
 networks:
   lab_network:
     driver: bridge
-    internal: true
     ipam:
       config:
         - subnet: 172.30.10.0/24
+
+  web_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.20.0/24
